@@ -43,7 +43,7 @@ issue_date = st.sidebar.date_input("单据日期", datetime.date.today())
 
 st.sidebar.markdown("---")
 st.sidebar.header("3. 自定义收费项目")
-num_items = st.sidebar.number_input("项目行数", min_value=1, max_value=5, value=2)
+num_items = st.sidebar.number_input("项目行数", min_value=1, max_value=5, value=1)
 items = []
 total_amount = 0.0
 
@@ -52,29 +52,36 @@ for i in range(int(num_items)):
   desc = st.sidebar.text_input(
       f"内容描述 {i+1}",
       (
-          "Indonesia Maid Recruitment Fee (Maid: Sri Haryati)"
+          "Indonesia Maid Recruitment Fee - Deposit for Maid: Sri Haryati"
           if i == 0
-          else (
-              "Processing, Work Permit, Medical & Documentation Fee (Maid:"
-              " Sri Haryati)"
-          )
+          else "Additional Fee"
       ),
       key=f"desc_{i}",
   )
   price = st.sidebar.number_input(
-      f"金额 RM {i+1}", value=10000.0 if i == 0 else 7500.0, key=f"price_{i}"
+      f"金额 RM {i+1}", value=8000.0, key=f"price_{i}"
   )
   items.append({"no": i + 1, "desc": desc, "amount": price})
   total_amount += price
 
-# 可选：底部结算备注
+# 侧边栏：结算摘要（实现全自动计算！）
 st.sidebar.markdown("---")
-st.sidebar.header("4. 结算摘要 (选填)")
-show_summary = st.sidebar.checkbox("显示总额/尾款摘要", value=False)
-total_pkg = st.sidebar.number_input("Total Package Price", value=17500.0)
-prev_paid = st.sidebar.number_input("Previous Paid (Deposit)", value=8000.0)
-balance_due = st.sidebar.number_input("Balance Due", value=0.0)
-is_paid_full = st.sidebar.checkbox("PAID IN FULL (已付清)", value=True)
+st.sidebar.header("4. 结算摘要 (自动计算)")
+show_summary = st.sidebar.checkbox("显示总额/尾款摘要", value=True)
+total_pkg = st.sidebar.number_input("Total Package Price (总套餐价)", value=17500.0)
+
+# 自动把上面输入的当前项目金额当成本次支付金额
+this_payment = total_amount
+
+# 核心自动计算：尾款 = 总价 - 当前支付金额（或者可以根据需要调整逻辑）
+# 如果是开 Deposit 单，可以输入总套餐价，然后系统自动算出还欠多少
+balance_due = max(0.0, total_pkg - this_payment)
+is_paid_full = balance_due == 0.0
+
+st.sidebar.info(
+    f"💡 **自动计算结果：**\n- 本次支付: RM {this_payment:,.2f}\n- 剩余尾款 (Balance"
+    f" Due): RM {balance_due:,.2f}"
+)
 
 # 拼装表格行 HTML
 rows_html = ""
@@ -89,13 +96,12 @@ for item in items:
     """
 
 # 摘要部分的 HTML
-summary_html = ""
 if show_summary:
   summary_html = f"""
-    <div style="float: right; width: 320px; margin-top: 15px; font-size: 14px;">
+    <div style="float: right; width: 340px; margin-top: 15px; font-size: 14px;">
         <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 5px;"><b>Total Package Price:</b></td><td style="text-align: right; padding: 5px;">RM {total_pkg:,.2f}</td></tr>
-            <tr><td style="padding: 5px;"><b>This Payment (Paid):</b></td><td style="text-align: right; padding: 5px;"><b>RM {total_amount:,.2f}</b></td></tr>
+            <tr><td style="padding: 5px;"><b>This Payment (Paid):</b></td><td style="text-align: right; padding: 5px;"><b>RM {this_payment:,.2f}</b></td></tr>
             <tr><td style="padding: 5px; border-top: 1px solid #333;"><b>Balance Due:</b></td><td style="text-align: right; padding: 5px; border-top: 1px solid #333;"><b>RM {balance_due:,.2f} {"(PAID IN FULL)" if is_paid_full else ""}</b></td></tr>
         </table>
     </div>
@@ -161,13 +167,11 @@ full_invoice_html = f"""
 </div>
 """
 
-# 使用安全且兼容性最好的方式渲染 HTML 收据
 st.components.v1.html(full_invoice_html, height=750, scrolling=True)
 
 st.markdown("---")
 st.info(
     "💡 **如何下载 PDF？**\n\n"
-    "上面就是和您提供的 PDF 一模一样的标准收据样式！您可以直接点击手机浏览器右上角"
-    "的菜单（三个点 **`...`**），选择 **`分享`** 或 **`打印`**，然后在打印选项里选择"
-    " **`另存为 PDF`**（Save as PDF），即可完美下载保存[span_1](start_span)[span_1](end_span)！"
+    "点击手机浏览器右上角菜单（三个点 **`...`**），选择 **`分享`** 或 **`打印`**，"
+    "再选择 **`另存为 PDF`** 即可完美下载！"
 )
