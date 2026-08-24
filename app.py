@@ -21,7 +21,7 @@ COMPANY_BANK = "CIMB BANK ACC NO: 8606253460"
 # 侧边栏：客户与单据设定
 st.sidebar.header("1. 客户资料")
 cust_name = st.sidebar.text_input("客户姓名", "GAN JUN HENG")
-cust_ic = st.sidebar.text_input("身份证/护照号 (IC NO)", "960226-01-6725")
+cust_ic = st.sidebar.text_input("身份证/护照号 (IC NO)", "900101-01-1234")
 cust_address = st.sidebar.text_area(
     "地址", "NO 79, JALAN NAKHODA 14, TAMAN UNGKU TUN AMINAH, 81300 SKUDAI, JOHOR."
 )
@@ -64,73 +64,67 @@ for i in range(int(num_items)):
   items.append({"no": i + 1, "desc": desc, "amount": price})
   total_amount += price
 
-# 生成精美单据预览
-rows_html = ""
+# --- 主界面：完全使用原生组件展示，绝不出现 HTML 代码 ---
+st.markdown(
+    f"<h2 style='text-align: center; color: #1f3bb3;'>{COMPANY_NAME}</h2>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<p style='text-align: center; font-size: 13px; font-weight:"
+    f" bold;'>{COMPANY_REG}</p>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<p style='text-align: center; font-size: 12px;'>{COMPANY_ADDR}</p>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<p style='text-align: center; font-size: 12px;'>{COMPANY_CONTACT}</p>",
+    unsafe_allow_html=True,
+)
+st.markdown("---")
+
+# 客户与单据信息分栏
+col1, col2 = st.columns([1.2, 0.8])
+with col1:
+  st.markdown("**To:**")
+  st.markdown(f"**{cust_name}**")
+  if cust_ic:
+    st.markdown(f"**IC NO:** {cust_ic}")
+  st.markdown(f"{cust_address}")
+  st.markdown(f"Tel: {cust_tel}")
+
+with col2:
+  st.markdown(f"### 🔴 {doc_title}")
+  st.markdown(f"**No:** {rcpt_no}")
+  st.markdown(f"**Date:** {issue_date}")
+
+st.markdown("---")
+
+# 费用明细标题
+st.markdown("#### 📋 费用明细 (Description)")
+
+# 用美观的列表展示项目，绝对安全不出代码
 for item in items:
-  rows_html += f"""
-    <tr>
-        <td style="padding: 8px; text-align: center; border: 1px solid #333;">{item['no']}</td>
-        <td style="padding: 8px; border: 1px solid #333;">{item['desc']}</td>
-        <td style="padding: 8px; text-align: right; border: 1px solid #333;">RM {item['amount']:,.2f}</td>
-    </tr>
-    """
+  c_a, c_b, c_c = st.columns([0.1, 0.7, 0.2])
+  c_a.write(f"**{item['no']}.**")
+  c_b.write(item["desc"])
+  c_c.write(f"**RM {item['amount']:,.2f}**")
+  st.markdown("<hr style='margin: 5px 0; border: 0.5px solid #eee;'>", unsafe_allow_html=True)
 
-invoice_html = f"""
-<div style="border: 2px solid #333; padding: 25px; font-family: Arial, sans-serif; background-color: #fff; color: #000;">
-    <div style="text-align: center;">
-        <h2 style="margin: 0; color: #1f3bb3;">{COMPANY_NAME}</h2>
-        <p style="margin: 2px; font-size: 13px; font-weight: bold;">{COMPANY_REG}</p>
-        <p style="margin: 2px; font-size: 12px;">{COMPANY_ADDR}</p>
-        <p style="margin: 2px; font-size: 12px;">{COMPANY_CONTACT}</p>
-    </div>
-    <hr style="border: 1px solid #333; margin: 15px 0;">
-    
-    <table style="width: 100%; font-size: 14px; border:none;">
-        <tr style="border:none;">
-            <td style="border:none; vertical-align: top;"><strong>To:</strong><br>
-                <b>{cust_name}</b><br>
-                <b>IC NO:</b> {cust_ic}<br>
-                {cust_address}<br>
-                Tel: {cust_tel}
-            </td>
-            <td style="text-align: right; vertical-align: top; border:none;">
-                <h3 style="margin: 0; color: #d9534f;">{doc_title}</h3>
-                <p style="margin: 4px 0;"><b>No:</b> {rcpt_no}</p>
-                <p style="margin: 4px 0;"><b>Date:</b> {issue_date}</p>
-            </td>
-        </tr>
-    </table>
-    <br>
-    
-    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-        <thead>
-            <tr style="background-color: #f2f2f2;">
-                <th style="padding: 8px; width: 10%; border: 1px solid #333; text-align: center;">NO</th>
-                <th style="padding: 8px; width: 65%; border: 1px solid #333; text-align: left;">DESCRIPTION</th>
-                <th style="padding: 8px; width: 25%; border: 1px solid #333; text-align: right;">AMOUNT (RM)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {rows_html}
-        </tbody>
-    </table>
-    
-    <h3 style="text-align: right; margin-top: 20px;">Total: RM {total_amount:,.2f}</h3>
-    
-    <br>
-    <p style="font-size: 13px;"><b>Pay To / Paid To:</b><br>
-    {COMPANY_NAME}<br>
-    <b>{COMPANY_BANK}</b></p>
-    
-    <div style="text-align: center; margin-top: 30px; font-weight: bold; color: #444;">
-        Thank You!
-    </div>
-</div>
-"""
+# 总金额
+st.markdown("---")
+st.success(f"### 总计 (Total): RM {total_amount:,.2f}")
 
-# 在网页上完美呈现收据
-st.markdown(invoice_html, unsafe_allow_html=True)
+# 银行信息与落款
+st.markdown("---")
+st.markdown(f"**Pay To / Paid To:**\n\n{COMPANY_NAME}\n\n**{COMPANY_BANK}**")
+st.markdown(
+    "<h4 style='text-align: center; color: gray;'>Thank You!</h4>",
+    unsafe_allow_html=True,
+)
 
+# 保存 PDF 提示
 st.markdown("---")
 st.info(
     "💡 **如何保存为 PDF？**\n\n"
