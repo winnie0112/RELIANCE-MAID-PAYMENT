@@ -1,6 +1,5 @@
 import datetime
 import random
-import pandas as pd
 import streamlit as st
 
 # 页面基本设置
@@ -22,13 +21,13 @@ COMPANY_INFO = {
     "bank": "CIMB BANK ACC NO: 8606253460",
 }
 
-st.title("🧾 女佣中介公司开单与收据管理系统")
+st.title("🧾 Reliance Maid 中介公司开单与收据系统")
 st.markdown("---")
 
 # ================= 侧边栏：输入区域 =================
 st.sidebar.header("1. 客户资料 (Customer Details)")
 cust_name = st.sidebar.text_input("客户姓名 (Name)", "GAN JUN HENG")
-cust_ic = st.sidebar.text_input("身份证/护照号 (IC/Passport)", "")
+cust_ic = st.sidebar.text_input("身份证/护照号 (IC NO)", "")
 cust_address = st.sidebar.text_area(
     "地址 (Address)",
     "NO 79, JALAN NAKHODA 14, TAMAN UNGKU TUN AMINAH, 81300 SKUDAI, JOHOR.",
@@ -37,13 +36,13 @@ cust_tel = st.sidebar.text_input("电话 (Tel)", "010-663 5030")
 cust_email = st.sidebar.text_input("电子邮箱 (Email)", "")
 
 st.sidebar.markdown("---")
-st.sidebar.header("2. 业务与费用选择 (Service & Fees)")
+st.sidebar.header("2. 业务与费用选择")
 
-# 业务选项
+# 服务类型
 service_type = st.sidebar.selectbox(
-    "选择服务项目",
+    "选择业务类型",
     [
-        "Apply Maid New (新女佣申请)",
+        "Apply Maid New (新女佣申请 - 分期/全额)",
         "Permit Renewal (准证续签)",
         "Contract Renewal (合同续签)",
         "Cancel (取消)",
@@ -53,18 +52,47 @@ service_type = st.sidebar.selectbox(
     ],
 )
 
-maid_name = ""
-payment_stage = "一次性付清 (Full Payment)"
+maid_country = "Indonesia"
+maid_name = "Sri Haryati"
+payment_stage = "Invoice (完整账单)"
+custom_price = 500.0
 
-# 针对 Apply Maid New 的特殊逻辑
-if service_type == "Apply Maid New (新女佣申请)":
+# 针对新女佣申请的特殊逻辑（包含国家、不同价钱、分期）
+if service_type == "Apply Maid New (新女佣申请 - 分期/全额)":
+  st.sidebar.markdown("### 🌍 女佣详情与国籍定价")
+  maid_country = st.sidebar.selectbox(
+      "女佣国籍 (Country)",
+      ["Indonesia (印尼)", "Philippines (菲律宾)", "Vietnam (越南)"],
+  )
   maid_name = st.sidebar.text_input("女佣姓名 (Maid Name)", "Sri Haryati")
-  payment_stage = st.sidebar.radio(
-      "付款阶段 (Payment Stage)",
-      ["Deposit (首付 RM 8,000)", "Balance (尾款 RM 9,500)", "Full Paid (全额)"],
+
+  # 根据不同国家设定默认总价（你可以随时在这里修改各国的标准价）
+  if "Indonesia" in maid_country:
+    default_total = 17500.0
+    default_deposit = 8000.0
+    default_balance = 9500.0
+  elif "Philippines" in maid_country:
+    default_total = 19500.0
+    default_deposit = 10000.0
+    default_balance = 9500.0
+  else:
+    default_total = 16000.0
+    default_deposit = 8000.0
+    default_balance = 8000.0
+
+  total_package_price = st.sidebar.number_input(
+      "配套总价 (Total Package Price RM)", value=default_total
+  )
+
+  payment_stage = st.sidebar.selectbox(
+      "打印单据类型",
+      [
+          "1. Invoice (完整总账单)",
+          "2. Deposit Receipt (首付收据)",
+          "3. Balance Receipt (尾款收据)",
+      ],
   )
 else:
-  # 其他服务让用户自定义价格
   custom_price = st.sidebar.number_input(
       "费用金额 (RM)", min_value=0.0, value=500.0, step=50.0
   )
@@ -73,122 +101,127 @@ issue_date = st.sidebar.date_input(
     "单据日期 (Issue Date)", datetime.date.today()
 )
 
-# ================= 主界面：生成单据预览 =================
-# 自动生成单号模拟
+# 生成单号模拟
 if "inv_no" not in st.session_state:
-  st.session_state.inv_no = f"INV{random.randint(10000, 99999)}"
+  st.session_state.inv_no = "INV00004"
 
-col1, col2 = st.columns([2, 1])
-with col2:
-  if st.button("🔄 重新生成单号"):
-    st.session_state.inv_no = f"INV{random.randint(10000, 99999)}"
-
-# 开始计算价格与生成单据内容
+# ================= 计算并渲染模板 =================
 desc_list = []
-total_package_price = 0.0
 this_payment = 0.0
 balance_due = 0.0
-doc_title = "INVOICE / RECEIPT"
+doc_title = "INVOICE"
+rcpt_no = st.session_state.inv_no
 
-if service_type == "Apply Maid New (新女佣申请)":
-  total_package_price = 17500.00
-  if payment_stage == "Deposit (首付 RM 8,000)":
-    doc_title = "DEPOSIT RECEIPT"
-    desc_list.append({
+if service_type == "Apply Maid New (新女佣申请 - 分期/全额)":
+  rec_fee = total_package_price - 7500.0  # 拆分参考你的模板
+  doc_fee = 7500.0
+
+  if "1. Invoice" in payment_stage:
+    doc_title = "INVOICE"
+    rcpt_no = "INV00004"
+    desc_list = [
+        {
+            "no": 1,
+            "desc": (
+                f"{maid_country.split()[0]} Maid Recruitment Fee (Maid:"
+                f" {maid_name})"
+            ),
+            "price": rec_fee,
+            "amount": rec_fee,
+        },
+        {
+            "no": 2,
+            "desc": (
+                "Processing, Work Permit, Medical & Documentation Fee (Maid:"
+                f" {maid_name})"
+            ),
+            "price": doc_fee,
+            "amount": doc_fee,
+        },
+    ]
+    this_payment = total_package_price
+    balance_due = 0.00
+  elif "2. Deposit Receipt" in payment_stage:
+    doc_title = "RECEIPT DEPOSIT"
+    rcpt_no = "RCP00004-1"
+    desc_list = [{
         "no": 1,
         "desc": (
             f"Deposit Payment for Maid Recruitment ({maid_name})\n(Part"
             " payment towards total fees)"
         ),
-        "price": 8000.00,
-        "amount": 8000.00,
-    })
-    this_payment = 8000.00
-    balance_due = 9500.00
-    rcpt_no = f"RCP{st.session_state.inv_no[3:]}-1"
-  elif payment_stage == "Balance (尾款 RM 9,500)":
-    doc_title = "BALANCE RECEIPT"
-    desc_list.append({
+        "price": default_deposit,
+        "amount": default_deposit,
+    }]
+    this_payment = default_deposit
+    balance_due = default_balance
+  else:
+    doc_title = "RECEIPT BALANCE"
+    rcpt_no = "RCP00004-2"
+    desc_list = [{
         "no": 1,
         "desc": (
             f"Balance Payment for Maid ({maid_name})\n(Final settlement)"
         ),
-        "price": 9500.00,
-        "amount": 9500.00,
-    })
-    this_payment = 9500.00
+        "price": default_balance,
+        "amount": default_balance,
+    }]
+    this_payment = default_balance
     balance_due = 0.00
-    rcpt_no = f"RCP{st.session_state.inv_no[3:]}-2"
-  else:  # Full Paid
-    doc_title = "INVOICE & FULL RECEIPT"
-    desc_list = [
-        {
-            "no": 1,
-            "desc": f"Indonesia Maid Recruitment Fee (Maid: {maid_name})",
-            "price": 10000.00,
-            "amount": 10000.00,
-        },
-        {
-            "no": 2,
-            "desc": (
-                "Processing, Work Permit, Medical & Documentation Fee"
-                f" (Maid: {maid_name})"
-            ),
-            "price": 7500.00,
-            "amount": 7500.00,
-        },
-    ]
-    this_payment = 17500.00
-    balance_due = 0.00
-    rcpt_no = st.session_state.inv_no
 else:
-  # 其他一次性服务
   doc_title = "INVOICE / RECEIPT"
   total_package_price = custom_price
-  desc_list.append(
-      {"no": 1, "desc": f"{service_type}", "price": custom_price, "amount": custom_price}
-  )
+  desc_list = [
+      {
+          "no": 1,
+          "desc": f"{service_type}",
+          "price": custom_price,
+          "amount": custom_price,
+      }
+  ]
   this_payment = custom_price
   balance_due = 0.00
-  rcpt_no = st.session_state.inv_no
 
-# ================= 渲染打印模板 (Letterhead 样式) =================
+# ================= 网页预览区域（完美复刻你提供的 PDF 样式） =================
 st.markdown("---")
+st.markdown("### 📄 单据打印预览 (与你的 PDF 模板完全一致)")
+
 st.markdown(
     f"""
-<div style="border: 2px solid #333; padding: 20px; font-family: Arial, sans-serif;">
+<div style="border: 2px solid #333; padding: 25px; font-family: Arial, sans-serif; background-color: #fff; color: #000;">
     <!-- Company Letterhead -->
     <div style="text-align: center;">
         <h2 style="margin: 0; color: #1f3bb3;">{COMPANY_INFO['name']}</h2>
-        <p style="margin: 2px; font-size: 14px; font-weight: bold;">{COMPANY_INFO['reg_no']}</p>
+        <p style="margin: 2px; font-size: 13px; font-weight: bold;">{COMPANY_INFO['reg_no']}</p>
         <p style="margin: 2px; font-size: 12px;">{COMPANY_INFO['address']}</p>
         <p style="margin: 2px; font-size: 12px;">Email: {COMPANY_INFO['email']} | Tel: {COMPANY_INFO['tel']}</p>
     </div>
     <hr style="border: 1px solid #333; margin: 15px 0;">
     
-    <!-- Title & Meta -->
+    <!-- To & Doc Info -->
     <table style="width: 100%; font-size: 14px;">
         <tr>
             <td><strong>To:</strong><br>
-                <b>{cust_name}</b> (IC NO: {cust_ic})<br>
+                <b>{cust_name}</b><br>
+                <b>IC NO:</b> {cust_ic}<br>
                 {cust_address.replace(chr(10), '<br>')}<br>
                 Tel: {cust_tel} | Email: {cust_email}
             </td>
             <td style="text-align: right; vertical-align: top;">
                 <h3 style="margin: 0; color: #d9534f;">{doc_title}</h3>
-                <p style="margin: 4px 0;"><b>NO/RCPT NO:</b> {rcpt_no}</p>
+                <p style="margin: 4px 0;"><b>INV/RCPT NO:</b> {rcpt_no}</p>
                 <p style="margin: 4px 0;"><b>ISSUE DATE:</b> {issue_date}</p>
             </td>
         </tr>
     </table>
     <br>
     
-    <!-- Items Table -->
+    <!-- Table -->
     <table style="width: 100%; border-collapse: collapse; font-size: 14px;" border="1">
         <thead>
             <tr style="background-color: #f2f2f2;">
-                <th style="padding: 8px; width: 10%; text-align: center;">NO</th>
-                <th style="padding: 8px; width: 60%; text-align: left;">DESCRIPTION</th>
+                <th style="padding: 8px; width: 8%; text-align: center;">NO</th>
+                <th style="padding: 8px; width: 62%; text-align: left;">DESCRIPTION</th>
                 <th style="padding: 8px; width: 15%; text-align: right;">PRICE (RM)</th>
                 <th style="padding: 8px; width: 15%; text-align: right;">AMOUNT (RM)</th>
             </tr>
@@ -218,13 +251,13 @@ st.markdown(
     </table>
     <br>
     
-    <!-- Summary section -->
-    <div style="float: right; width: 350px; font-size: 14px;">
+    <!-- Bottom Summary -->
+    <div style="float: right; width: 380px; font-size: 14px;">
         <table style="width: 100%; border-collapse: collapse;">
-            {f'<tr><td style="padding: 4px;"><b>Total Package Price:</b></td><td style="text-align: right;">RM {total_package_price:,.2f}</td></tr>' if service_type == 'Apply Maid New (新女佣申请)' else ''}
-            {f'<tr><td style="padding: 4px;"><b>Previous Paid:</b></td><td style="text-align: right;">RM {8000.00 if payment_stage == "Balance (尾kwan RM 9,500)" else 0.00:,.2f}</td></tr>' if payment_stage == "Balance (尾款 RM 9,500)" else ''}
+            {f'<tr><td style="padding: 4px;"><b>Total Package Price:</b></td><td style="text-align: right;">RM {total_package_price:,.2f}</td></tr>' if service_type.startswith('Apply Maid New') else ''}
+            {f'<tr><td style="padding: 4px;"><b>Previous Paid (Deposit):</b></td><td style="text-align: right;">RM {default_deposit:,.2f}</td></tr>' if 'Receipt Balance' in payment_stage else ''}
             <tr><td style="padding: 4px;"><b>This Payment (Paid):</b></td><td style="text-align: right;"><b>RM {this_payment:,.2f}</b></td></tr>
-            <tr><td style="padding: 4px; border-top: 1px solid #333;"><b>Balance Due (尾款):</b></td><td style="text-align: right; border-top: 1px solid #333;"><b>RM {balance_due:,.2f}</b></td></tr>
+            <tr><td style="padding: 4px; border-top: 1px solid #333;"><b>Balance Due:</b></td><td style="text-align: right; border-top: 1px solid #333;"><b>RM {balance_due:,.2f} { "(PAID IN FULL)" if balance_due == 0 and service_type.startswith('Apply Maid New') else "" }</b></td></tr>
         </table>
     </div>
     <div style="clear: both;"></div>
@@ -234,7 +267,7 @@ st.markdown(
     {COMPANY_INFO['name']}<br>
     <b>{COMPANY_INFO['bank']}</b></p>
     
-    <div style="text-align: center; margin-top: 20px; font-weight: bold; color: #555;">
+    <div style="text-align: center; margin-top: 25px; font-weight: bold; color: #444;">
         Thank You!
     </div>
 </div>
@@ -242,8 +275,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# 提示保存
 st.info(
-    "💡 提示：你可以直接在浏览器中使用网页的 **打印功能 (Ctrl+P / Cmd+P)**，并将打印机设置为"
-    " **另存为 PDF (Save as PDF)**，即可完美复刻你的收据格式并保存或发送给顾客！"
+    "💡 提示：点击浏览器的 **Ctrl + P (Windows) 或 Cmd + P (Mac)**"
+    " 即可直接将此页面完美排版另存为 PDF 或直接连接打印机打印出来给客户！"
 )
