@@ -1,6 +1,4 @@
 import datetime
-import pdfkit
-from pyhtml2pdf import *
 import streamlit as st
 
 st.set_page_config(
@@ -20,10 +18,10 @@ COMPANY_CONTACT = (
 )
 COMPANY_BANK = "CIMB BANK ACC NO: 8606253460"
 
-# 侧边栏：自由输入客户资料
-st.sidebar.header("1. 客户资料 (可随时修改)")
+# 侧边栏：客户与单据设定
+st.sidebar.header("1. 客户资料")
 cust_name = st.sidebar.text_input("客户姓名", "GAN JUN HENG")
-cust_ic = st.sidebar.text_input("身份证/护照号 (IC NO)", "900101-01-1234")
+cust_ic = st.sidebar.text_input("身份证/护照号 (IC NO)", "960226-01-6725")
 cust_address = st.sidebar.text_area(
     "地址", "NO 79, JALAN NAKHODA 14, TAMAN UNGKU TUN AMINAH, 81300 SKUDAI, JOHOR."
 )
@@ -45,8 +43,6 @@ issue_date = st.sidebar.date_input("单据日期", datetime.date.today())
 
 st.sidebar.markdown("---")
 st.sidebar.header("3. 自定义收费项目")
-
-# 让用户自由添加多行项目
 num_items = st.sidebar.number_input("项目行数", min_value=1, max_value=5, value=2)
 items = []
 total_amount = 0.0
@@ -68,7 +64,7 @@ for i in range(int(num_items)):
   items.append({"no": i + 1, "desc": desc, "amount": price})
   total_amount += price
 
-# 拼装 HTML 表格行
+# 生成精美单据预览
 rows_html = ""
 for item in items:
   rows_html += f"""
@@ -79,70 +75,8 @@ for item in items:
     </tr>
     """
 
-# 网页端实时预览
-st.markdown(
-    f"<h2 style='text-align: center; color: #1f3bb3;'>{COMPANY_NAME}</h2>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    f"<p style='text-align: center; font-size: 13px; font-weight:"
-    f" bold;'>{COMPANY_REG}</p>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    f"<p style='text-align: center; font-size: 12px;'>{COMPANY_ADDR}</p>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    f"<p style='text-align: center; font-size: 12px;'>{COMPANY_CONTACT}</p>",
-    unsafe_allow_html=True,
-)
-st.markdown("---")
-
-col1, col2 = st.columns([1.2, 0.8])
-with col1:
-  st.markdown("**To:**")
-  st.markdown(f"**{cust_name}**")
-  if cust_ic:
-    st.markdown(f"**IC NO:** {cust_ic}")
-  st.markdown(f"{cust_address}")
-  st.markdown(f"Tel: {cust_tel}")
-
-with col2:
-  st.markdown(
-      f"### <span style='color:red;'>{doc_title}</span>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(f"**No:** {rcpt_no}")
-  st.markdown(f"**Date:** {issue_date}")
-
-st.markdown("---")
-st.markdown("#### 费用明细 (Description)")
-
-# 用原生的表格展示预览
-for item in items:
-  c1, c2, c3 = st.columns([0.1, 0.7, 0.2])
-  c1.write(str(item["no"]))
-  c2.write(item["desc"])
-  c3.write(f"RM {item['amount']:,.2f}")
-
-st.markdown("---")
-st.success(f"### 总计 (Total): RM {total_amount:,.2f}")
-
-st.markdown(
-    f"**Pay To / Paid To:**\n\n{COMPANY_NAME}\n\n**{COMPANY_BANK}**",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    "<h4 style='text-align: center; color: gray;'>Thank You!</h4>",
-    unsafe_allow_html=True,
-)
-
-# 生成完整标准 PDF 的 HTML 模版
-pdf_html = f"""
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: Arial, sans-serif; padding: 20px; color: #000;">
+invoice_html = f"""
+<div style="border: 2px solid #333; padding: 25px; font-family: Arial, sans-serif; background-color: #fff; color: #000;">
     <div style="text-align: center;">
         <h2 style="margin: 0; color: #1f3bb3;">{COMPANY_NAME}</h2>
         <p style="margin: 2px; font-size: 13px; font-weight: bold;">{COMPANY_REG}</p>
@@ -152,7 +86,7 @@ pdf_html = f"""
     <hr style="border: 1px solid #333; margin: 15px 0;">
     
     <table style="width: 100%; font-size: 14px; border:none;">
-        <tr>
+        <tr style="border:none;">
             <td style="border:none; vertical-align: top;"><strong>To:</strong><br>
                 <b>{cust_name}</b><br>
                 <b>IC NO:</b> {cust_ic}<br>
@@ -183,39 +117,23 @@ pdf_html = f"""
     
     <h3 style="text-align: right; margin-top: 20px;">Total: RM {total_amount:,.2f}</h3>
     
-    <br><br>
+    <br>
     <p style="font-size: 13px;"><b>Pay To / Paid To:</b><br>
     {COMPANY_NAME}<br>
     <b>{COMPANY_BANK}</b></p>
     
-    <div style="text-align: center; margin-top: 40px; font-weight: bold; color: #444;">
+    <div style="text-align: center; margin-top: 30px; font-weight: bold; color: #444;">
         Thank You!
     </div>
-</body>
-</html>
+</div>
 """
 
-# 下载 PDF 按钮逻辑
+# 在网页上完美呈现收据
+st.markdown(invoice_html, unsafe_allow_html=True)
+
 st.markdown("---")
-if st.button("📥 点击生成并下载 PDF 收据"):
-  try:
-    # 临时保存为 HTML 然后转 PDF
-    with open("temp_receipt.html", "w", encoding="utf-8") as f:
-      f.write(pdf_html)
-
-    # 尝试转换
-    pdfkit.from_file("temp_receipt.html", "output.pdf")
-
-    with open("output.pdf", "rb") as pdf_file:
-      st.download_button(
-          label="👉 点击这里保存 PDF 文件到手机",
-          data=pdf_file,
-          file_name=f"{rcpt_no}_{cust_name}.pdf",
-          mime="application/pdf",
-      )
-    st.success("PDF 生成成功，请点击上方按钮下载！")
-  except Exception as e:
-    st.info(
-        "提示：由于云端服务器限制，如果直接下载 PDF 遇到环境报错，您也可以直接在手机浏览器上"
-        "使用网页的 **分享 / 打印 (Print to PDF)** 功能直接把当前页面保存为完美 PDF！"
-    )
+st.info(
+    "💡 **如何保存为 PDF？**\n\n"
+    "您只需点击手机浏览器右上角的菜单（三个点 **`...`**），选择 **`分享`** 或 **`打印`**，"
+    "然后在打印选项里选择 **`另存为 PDF`**（Save as PDF），即可秒速生成并下载完美的 PDF 收据！"
+)
