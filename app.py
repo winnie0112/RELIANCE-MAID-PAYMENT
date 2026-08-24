@@ -4,25 +4,21 @@ import streamlit as st
 st.set_page_config(
     page_title="Agensi Pekerjaan Reliance Maid - 开单系统",
     page_icon="🧾",
-    layout="wide",
+    layout="centered",
 )
 
 # 公司固定抬头信息
-COMPANY_INFO = {
-    "name": "AGENSI PEKERJAAN RELIANCE MAID SDN BHD",
-    "reg_no": "(202501046992/1648400-A)",
-    "address": (
-        "NO 34A, JALAN BUKIT IMPIAN 16, TAMAN IMPIAN EMAS, 81300 SKUDAI, JOHOR."
-    ),
-    "email": "reliance.maid.agensi@gmail.com",
-    "tel": "010-837 8471 / 011-2587 8401",
-    "bank": "CIMB BANK ACC NO: 8606253460",
-}
+COMPANY_NAME = "AGENSI PEKERJAAN RELIANCE MAID SDN BHD"
+COMPANY_REG = "(202501046992/1648400-A)"
+COMPANY_ADDR = (
+    "NO 34A, JALAN BUKIT IMPIAN 16, TAMAN IMPIAN EMAS, 81300 SKUDAI, JOHOR."
+)
+COMPANY_CONTACT = (
+    "Email: reliance.maid.agensi@gmail.com | Tel: 010-837 8471 / 011-2587 8401"
+)
+COMPANY_BANK = "CIMB BANK ACC NO: 8606253460"
 
-st.title("🧾 Reliance Maid 中介公司开单与收据系统")
-st.markdown("---")
-
-# 侧边栏输入
+# 侧边栏：输入区域
 st.sidebar.header("1. 客户资料")
 cust_name = st.sidebar.text_input("客户姓名", "GAN JUN HENG")
 cust_ic = st.sidebar.text_input("身份证/护照号 (IC NO)", "")
@@ -32,7 +28,7 @@ cust_address = st.sidebar.text_area(
 cust_tel = st.sidebar.text_input("电话", "010-663 5030")
 
 st.sidebar.markdown("---")
-st.sidebar.header("2. 女佣与费用选择")
+st.sidebar.header("2. 业务与费用选择")
 service_type = st.sidebar.selectbox(
     "业务类型", ["Apply Maid New (新女佣申请)", "Other Service (其他服务)"]
 )
@@ -72,12 +68,12 @@ else:
 
 issue_date = st.sidebar.date_input("单据日期", datetime.date.today())
 
-# 数据处理
-desc_list = []
+# 计算逻辑
 this_payment = 0.0
 balance_due = 0.0
 doc_title = "INVOICE"
 rcpt_no = "INV00004"
+items = []
 
 if service_type == "Apply Maid New (新女佣申请)":
   rec_fee = total_package_price - 7500.0
@@ -86,145 +82,102 @@ if service_type == "Apply Maid New (新女佣申请)":
   if "1. Invoice" in payment_stage:
     doc_title = "INVOICE"
     rcpt_no = "INV00004"
-    desc_list = [
-        {
-            "no": 1,
-            "desc": (
-                f"{maid_country.split()[0]} Maid Recruitment Fee (Maid:"
-                f" {maid_name})"
-            ),
-            "price": rec_fee,
-            "amount": rec_fee,
-        },
-        {
-            "no": 2,
-            "desc": (
-                "Processing, Work Permit, Medical & Documentation Fee (Maid:"
-                f" {maid_name})"
-            ),
-            "price": doc_fee,
-            "amount": doc_fee,
-        },
+    items = [
+        (
+            f"{maid_country.split()[0]} Maid Recruitment Fee (Maid:"
+            f" {maid_name})",
+            rec_fee,
+        ),
+        (
+            f"Processing, Work Permit, Medical & Documentation Fee (Maid:"
+            f" {maid_name})",
+            doc_fee,
+        ),
     ]
     this_payment = total_package_price
     balance_due = 0.00
   elif "2. Deposit" in payment_stage:
     doc_title = "RECEIPT DEPOSIT"
     rcpt_no = "RCP00004-1"
-    desc_list = [{
-        "no": 1,
-        "desc": (
-            f"Deposit Payment for Maid Recruitment ({maid_name})<br><small>(Part"
-            " payment towards total fees)</small>"
-        ),
-        "price": default_deposit,
-        "amount": default_deposit,
-    }]
+    items = [(
+        f"Deposit Payment for Maid Recruitment ({maid_name})",
+        default_deposit,
+    )]
     this_payment = default_deposit
     balance_due = default_balance
   else:
     doc_title = "RECEIPT BALANCE"
     rcpt_no = "RCP00004-2"
-    desc_list = [{
-        "no": 1,
-        "desc": (
-            f"Balance Payment for Maid ({maid_name})<br><small>(Final"
-            " settlement)</small>"
-        ),
-        "price": default_balance,
-        "amount": default_balance,
-    }]
+    items = [(f"Balance Payment for Maid ({maid_name})", default_balance)]
     this_payment = default_balance
     balance_due = 0.00
 else:
   doc_title = "INVOICE / RECEIPT"
   rcpt_no = "INV00005"
-  desc_list = [{
-      "no": 1,
-      "desc": service_type,
-      "price": total_package_price,
-      "amount": total_package_price,
-  }]
+  items = [(service_type, total_package_price)]
   this_payment = total_package_price
   balance_due = 0.00
 
-# 拼装 HTML
-rows_html = ""
-for item in desc_list:
-  rows_html += f"""
-    <tr>
-        <td style="padding: 8px; text-align: center;">{item['no']}</td>
-        <td style="padding: 8px;">{item['desc']}</td>
-        <td style="padding: 8px; text-align: right;">{item['price']:,.2f}</td>
-        <td style="padding: 8px; text-align: right;">{item['amount']:,.2f}</td>
-    </tr>
-    """
+# 主界面：正式单据展示
+st.markdown(f"<h2 style='text-align: center;'>{COMPANY_NAME}</h2>", unsafe_allow_html=True)
+st.markdown(
+    f"<p style='text-align: center; font-size: 14px; font-weight: bold;'>{COMPANY_REG}</p>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<p style='text-align: center; font-size: 12px;'>{COMPANY_ADDR}</p>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f"<p style='text-align: center; font-size: 12px;'>{COMPANY_CONTACT}</p>",
+    unsafe_allow_html=True,
+)
+st.markdown("---")
 
-summary_html = f"""
-    <table style="width: 100%; border-collapse: collapse;">
-        {'<tr><td style="padding: 4px;"><b>Total Package Price:</b></td><td style="text-align: right;">RM ' + f'{total_package_price:,.2f}' + '</td></tr>' if service_type.startswith('Apply Maid New') else ''}
-        {'<tr><td style="padding: 4px;"><b>Previous Paid (Deposit):</b></td><td style="text-align: right;">RM ' + f'{default_deposit:,.2f}' + '</td></tr>' if 'Balance' in payment_stage else ''}
-        <tr><td style="padding: 4px;"><b>This Payment (Paid):</b></td><td style="text-align: right;"><b>RM {this_payment:,.2f}</b></td></tr>
-        <tr><td style="padding: 4px; border-top: 1px solid #333;"><b>Balance Due:</b></td><td style="text-align: right; border-top: 1px solid #333;"><b>RM {balance_due:,.2f} {"(PAID IN FULL)" if balance_due == 0 and service_type.startswith("Apply Maid New") else ""}</b></td></tr>
-    </table>
-"""
+col1, col2 = st.columns([1.2, 0.8])
 
-html_content = f"""
-<div style="border: 2px solid #333; padding: 25px; font-family: Arial, sans-serif; background-color: #fff; color: #000;">
-    <div style="text-align: center;">
-        <h2 style="margin: 0; color: #1f3bb3;">{COMPANY_INFO['name']}</h2>
-        <p style="margin: 2px; font-size: 13px; font-weight: bold;">{COMPANY_INFO['reg_no']}</p>
-        <p style="margin: 2px; font-size: 12px;">{COMPANY_INFO['address']}</p>
-        <p style="margin: 2px; font-size: 12px;">Email: {COMPANY_INFO['email']} | Tel: {COMPANY_INFO['tel']}</p>
-    </div>
-    <hr style="border: 1px solid #333; margin: 15px 0;">
-    
-    <table style="width: 100%; font-size: 14px; border:none;">
-        <tr style="border:none;">
-            <td style="border:none;"><strong>To:</strong><br>
-                <b>{cust_name}</b><br>
-                <b>IC NO:</b> {cust_ic}<br>
-                {cust_address}<br>
-                Tel: {cust_tel}
-            </td>
-            <td style="text-align: right; vertical-align: top; border:none;">
-                <h3 style="margin: 0; color: #d9534f;">{doc_title}</h3>
-                <p style="margin: 4px 0;"><b>INV/RCPT NO:</b> {rcpt_no}</p>
-                <p style="margin: 4px 0;"><b>ISSUE DATE:</b> {issue_date}</p>
-            </td>
-        </tr>
-    </table>
-    <br>
-    
-    <table style="width: 100%; border-collapse: collapse; font-size: 14px;" border="1">
-        <thead>
-            <tr style="background-color: #f2f2f2;">
-                <th style="padding: 8px; width: 8%; text-align: center;">NO</th>
-                <th style="padding: 8px; width: 62%; text-align: left;">DESCRIPTION</th>
-                <th style="padding: 8px; width: 15%; text-align: right;">PRICE (RM)</th>
-                <th style="padding: 8px; width: 15%; text-align: right;">AMOUNT (RM)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {rows_html}
-        </tbody>
-    </table>
-    <br>
-    
-    <div style="float: right; width: 380px; font-size: 14px;">
-        {summary_html}
-    </div>
-    <div style="clear: both;"></div>
-    
-    <br>
-    <p style="font-size: 13px; margin: 5px 0;"><b>Pay To / Paid To:</b><br>
-    {COMPANY_INFO['name']}<br>
-    <b>{COMPANY_INFO['bank']}</b></p>
-    
-    <div style="text-align: center; margin-top: 25px; font-weight: bold; color: #444;">
-        Thank You!
-    </div>
-</div>
-"""
+with col1:
+  st.markdown("**To:**")
+  st.markdown(f"**{cust_name}**")
+  if cust_ic:
+    st.markdown(f"**IC NO:** {cust_ic}")
+  st.markdown(f"{cust_address}")
+  st.markdown(f"Tel: {cust_tel}")
 
-st.markdown(html_content, unsafe_allow_html=True)
+with col2:
+  st.markdown(f"### <span style='color:red;'>{doc_title}</span>", unsafe_allow_html=True)
+  st.markdown(f"**No:** {rcpt_no}")
+  st.markdown(f"**Date:** {issue_date}")
+
+st.markdown("---")
+
+# 表格数据展示
+st.markdown("#### 费用明细 (Description)")
+for i, (desc, amt) in enumerate(items, 1):
+  c_a, c_b, c_c = st.columns([0.1, 0.6, 0.3])
+  c_a.write(str(i))
+  c_b.write(desc)
+  c_c.write(f"RM {amt:,.2f}")
+
+st.markdown("---")
+
+# 总结算区域
+st.markdown("#### 结算总额")
+if service_type.startswith("Apply Maid New"):
+  st.write(f"**Total Package Price:** RM {total_package_price:,.2f}")
+  if "Balance" in payment_stage:
+    st.write(f"**Previous Paid (Deposit):** RM {default_deposit:,.2f}")
+
+st.success(f"**This Payment (Paid): RM {this_payment:,.2f}**")
+if service_type.startswith("Apply Maid New"):
+  st.info(
+      f"**Balance Due (尾款): RM {balance_due:,.2f}**"
+      f" {'(PAID IN FULL)' if balance_due == 0 else ''}"
+  )
+
+st.markdown("---")
+st.markdown(f"**Pay To / Paid To:**\n\n{COMPANY_NAME}\n\n**{COMPANY_BANK}**")
+st.markdown(
+    "<h4 style='text-align: center; color: gray;'>Thank You!</h4>",
+    unsafe_allow_html=True,
+)
